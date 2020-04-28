@@ -63,7 +63,6 @@ Everything before submitting profile has been removed. Even after profile submis
 -first_dash_date, this is removed after the converted variable is created 
 -planned_time 
 -apply_date (this value is important if we need to calculate new day variables)
--applied_submarket
 -planned_sp
 -planned_sm 
 -offer_end
@@ -96,6 +95,7 @@ Everything before submitting profile has been removed. Even after profile submis
 ```{r datacleaning}
 
 #Leads that converted are given a 1 in the converted column 
+
 df <- data %>% mutate(converted = ifelse(!is.na(data$first_dash_date), 1, 0)) %>% 
         filter(!is.na(submit_profile_time)) %>% 
         filter(is_waitlist != "waitlist") %>% 
@@ -104,6 +104,7 @@ df <- data %>% mutate(converted = ifelse(!is.na(data$first_dash_date), 1, 0)) %>
 
 # Filling in blank data 
 
+
 df$phone_model[df$phone_model == ''] <- "unknown"
 df$phone_os[df$phone_os == ''] <- "unknown"
 df$app_version[df$app_version == ''] <- "unknown"
@@ -111,13 +112,15 @@ df$offer[df$offer == ''] <- "blank"
 df$w9_signed[df$w9_signed == ''] <- "no"
 df$orientation_type[df$orientation_type == ''] <- "none"
 
-
 df$offer_amt[is.na(df$offer_amt)] <- 0
 df$offer_deliv_req[is.na(df$offer_deliv_req)] <- 0
 df$delivs[is.na(df$delivs)] <- 0
         
        
+
         
+ str(df)      
+                
 
 ```
 
@@ -126,11 +129,14 @@ df$delivs[is.na(df$delivs)] <- 0
 
 ```{r logistic_regression}
 # da_mvr_bgc_start + da_mvr_bgc_pass +
-
 logit <- glm(converted ~ age + orientation_type + channel + da_profile_submit + da_orientation_select
-             + da_dropshipping_created + da_oriented + holdout, data = df, family = "binomial")
-
+             + da_dropshipping_created + da_oriented + holdout + applied_submarket, data = df, family = "binomial")
 summary(logit)
+
+
+```
+```{r linear regression with relavent variables at each step in application process}
+
 
 
 ```
