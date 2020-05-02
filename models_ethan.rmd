@@ -15,6 +15,38 @@ colnames(df)
 
 ```
 
+```{r data cleaning}
+#Leads that converted are given a 1 in the converted column 
+df <- data %>% mutate(converted = ifelse(!is.na(data$first_dash_date), 1, 0)) %>% 
+        filter(!is.na(submit_profile_time)) %>% 
+        filter(is_waitlist != "waitlist") %>% 
+        filter(!is.na(age)) %>% 
+        select(-c("da_activated", "background_submit_date", "submit_profile_time", "orientation_selection_time","orientation_start_time", "mvr_initiated","mvr_cleared","criminal_initiated","criminal_cleared", "orient_date", "start_date", "first_dash_date", "planned_time", "waitlist_end_date" ,"dropship_kit_ordered","apply_date","applied_submarket","planned_sp", "planned_sm", "offer_end", "is_waitlist", "current_wl_status","dash_day","da_bgc_info_sub", "x", "dasher_applicant_id", "dasher_id", "zip_code", "holdout"))
+
+# Filling in blank data 
+
+df$phone_model[df$phone_model == ''] <- "unknown"
+df$phone_os[df$phone_os == ''] <- "unknown"
+df$app_version[df$app_version == ''] <- "unknown"
+df$offer[df$offer == ''] <- "blank"
+df$w9_signed[df$w9_signed == ''] <- "no"
+df$orientation_type[df$orientation_type == ''] <- "none"
+
+
+df$offer_amt[is.na(df$offer_amt)] <- 0
+df$offer_deliv_req[is.na(df$offer_deliv_req)] <- 0
+df$delivs[is.na(df$delivs)] <- 0
+        
+       
+        
+
+```
+
+
+
+
+```
+
 
 ## Hierchial Cluster on Data through first step 
 

@@ -6,7 +6,6 @@ output: html_document
 ---
 
 ```{r libraries, message=FALSE, warning=FALSE}
-
 list.of.packages <-
         c(
                 "tidyverse",
@@ -17,27 +16,54 @@ list.of.packages <-
                 
                 
            )
-
-new.packages <-list.of.packages[!(list.of.packages %in% installed.packages()[, "Package"])]
-
-
+#new.packages <-list.of.packages[!(list.of.packages %in% installed.packages()[, "Package"])]
 library(googledrive)
 library(tidyverse)
 library(janitor)
 library(dplyr)
 library(caret)
-
 ```
 
 ## Pulling in the data 
 
 ```{r data, cache = TRUE}
-
  drive_download(as_id("1S4B1Txs-ycsyO0X6DEA5C1STHt1fXeOK"), overwrite = TRUE)
  data <- read.csv("EER396_Data_Set.csv", stringsAsFactors = FALSE)
+ drive_download(as_id("11K-AoNWVL7WcPpRAUkdCEwIC-umiUtwx"), overwrite = TRUE)
+ Submarkets <- read.csv("Submarkets.csv", stringsAsFactors = FALSE)
  data <- clean_names(data)
- str(data)
+ #str(data)
+ 
+ data <- cbind(data,Submarkets)
+ data$DENSITY <- as.numeric(as.character(data$DENSITY))
+ data$LOCALECODE <- as.numeric(as.character(data$LOCALECODE))
+ data$x2020POP <- as.numeric(as.character(data$x2020POP))
+ data$AREA <- as.numeric(as.character(data$AREA))
+ 
 
+
+
+```
+
+
+```{r summary statistics}
+library(formattable)
+applicantflow <- colSums(!is.na(data[,c(1, 40, 42:43, 46:51)]))/nrow(data)*100
+applicantflow
+
+applicantflow <- matrix(applicantflow, ncol=1, byrow=TRUE)
+applicantflow <- as.data.frame(applicantflow, stringsAsFactors=FALSE)
+applicantflow$Stage <- 1:10
+applicantflow$V1 <- round(applicantflow$V1, digits = 1)
+
+
+library(ggplot2)
+
+bar <- ggplot(data=applicantflow,aes(x= Stage, y= V1)) +
+  geom_bar(stat="identity")+geom_text(aes(label=V1), vjust=1.6, color="white", size=3.5)+
+  theme_minimal()+ scale_y_continuous(labels = scales::percent_format(accuracy = 1))
+
+bar
 
 ```
 
@@ -94,31 +120,106 @@ Everything before submitting profile has been removed. Even after profile submis
 
 
 ```{r datacleaning}
+#All the variables with dates need to be converted to a character before they are converted to the date time format.
+data$submit_profile_time <- as.character(data$submit_profile_time)
+data$apply_date <- as.character(data$apply_date)
+data$orientation_selection_time <- as.character(data$orientation_selection_time)
+data$orientation_start_time <- as.character(data$orientation_start_time)
+data$mvr_initiated <- as.character(data$mvr_initiated)
+data$criminal_initiated <- as.character(data$criminal_initiated)
+data$dropship_kit_ordered <- as.character(data$dropship_kit_ordered)
+data$orient_date <- as.character(data$orient_date)
+data$first_dash_date <- as.character(data$first_dash_date)
+
 
 #Leads that converted are given a 1 in the converted column 
-df <- data %>% mutate(converted = ifelse(!is.na(data$first_dash_date), 1, 0)) %>% 
+df <- data %>% mutate(converted = ifelse(!is.na(data$first_dash_date) & data$da_first_dash <=45, 1, 0)) %>% 
         filter(!is.na(submit_profile_time)) %>% 
         filter(is_waitlist != "waitlist") %>% 
         filter(!is.na(age)) %>% 
-        select(-c("da_activated", "background_submit_date", "submit_profile_time", "orientation_selection_time","orientation_start_time", "mvr_initiated","mvr_cleared","criminal_initiated","criminal_cleared", "orient_date", "start_date", "first_dash_date", "planned_time", "waitlist_end_date" ,"dropship_kit_ordered","apply_date","applied_submarket","planned_sp", "planned_sm", "offer_end", "is_waitlist", "current_wl_status","dash_day","da_bgc_info_sub", "x", "dasher_applicant_id", "dasher_id", "zip_code" ))
+        filter(!is.na(DENSITY))  %>%
+        mutate(submit_profile_time = as.Date(submit_profile_time, "%Y-%m-%d %H:%M:%S"), 
+        apply_date = as.Date(apply_date, "%Y-%m-%d"),
+         orientation_selection_time = as.Date(orientation_selection_time, "%Y-%m-%d %H:%M:%S"),
+orientation_start_time  = as.Date(orientation_start_time , "%Y-%m-%d %H:%M:%S"),
+ mvr_initiated = as.Date(mvr_initiated, "%Y-%m-%d %H:%M:%S"),
+ criminal_initiated = as.Date(criminal_initiated, "%Y-%m-%d %H:%M:%S"),
+ dropship_kit_ordered = as.Date(dropship_kit_ordered, "%Y-%m-%d %H:%M:%S"),
+ orient_date = as.Date(orient_date, "%Y-%m-%d"),
+ first_dash_date = as.Date(first_dash_date, "%Y-%m-%d")) 
 
+#Adding variables for days of the week that steps are completed 
+df$submit_profile_wkd <- weekdays(df$submit_profile_time)
+df$ apply_date_wkd <- weekdays(df$ apply_date)
+df$orientation_selection_wkd <- weekdays(df$orientation_selection_time)
+df$orientation_start_wkd <- weekdays(df$orientation_start_time)
+df$mvr_initiated_wkd <- weekdays(df$mvr_initiated)
+df$criminal_initiated_wkd <- weekdays(df$criminal_initiated)
+df$dropship_kit_ordered_wkd <- weekdays(df$dropship_kit_ordered)
+df$orient_date_wkd <- weekdays(df$orient_date)
+df$first_dash_wkd <- weekdays(df$first_dash_date)
+
+
+df <- df %>%
+        select(-c("da_activated", "background_submit_date", "submit_profile_time", "orientation_selection_time","orientation_start_time", "mvr_initiated","mvr_cleared","criminal_initiated","criminal_cleared", "orient_date", "start_date", "planned_time", "waitlist_end_date" ,"dropship_kit_ordered","apply_date","planned_sp", "planned_sm", "offer_end", "is_waitlist", "current_wl_status","dash_day","da_bgc_info_sub", "x", "dasher_applicant_id", "dasher_id", "zip_code" ))
 # Filling in blank data 
-
 df$phone_model[df$phone_model == ''] <- "unknown"
 df$phone_os[df$phone_os == ''] <- "unknown"
-df$app_version[df$app_version == ''] <- "unknown"
+df$app_version[df$app_version == ''] <- 0
+df$app_version[df$app_version == '2.42.0'] <- 1
+df$app_version[df$app_version == '5.61.4'] <- 1
+df$app_version[df$app_version == '2.2.0'] <- 1
+df$app_version[df$app_version == '2.26.1'] <- 1
+df$app_version[df$app_version == '2.28.0'] <- 1
+df$app_version[df$app_version == '2.30.0'] <- 1
+df$app_version[df$app_version == '2.30.1'] <- 1
+df$app_version[df$app_version == '2.32.0'] <- 1
+df$app_version[df$app_version == '2.24.0'] <- 1
+df$app_version[df$app_version == '2.32.1'] <- 1
+df$app_version[df$app_version == '2.34.0'] <- 1
+df$app_version[df$app_version == '2.36.0'] <- 1
+df$app_version[df$app_version == '2.37.0'] <- 1
+df$app_version[df$app_version == '2.38.0'] <- 1
+df$app_version[df$app_version == '2.4.0'] <- 1
+df$app_version[df$app_version == '2.40.0'] <- 1
+df$app_version[df$app_version == '2.44.0'] <- 1
+df$app_version[df$app_version == '5.29.3'] <- 1
+df$app_version[df$app_version == '5.31.8'] <- 1
+df$app_version[df$app_version == '5.43.10'] <- 1
+df$app_version[df$app_version == '5.43.8'] <- 1
+df$app_version[df$app_version == '5.56.5'] <- 1
+df$app_version[df$app_version == '5.58.4'] <- 1
+df$app_version[df$app_version == '5.59.3'] <- 1
+df$app_version[df$app_version == '5.62.2'] <- 1
+df$app_version[df$app_version == '5.63.3'] <- 1
+df$app_version[df$app_version == '5.63.4'] <- 1
+df$app_version[df$app_version == '5.63.5'] <- 1
+df$app_version[df$app_version == '5.63.6'] <- 1
+df$app_version[df$app_version == '5.64.4'] <- 1
+df$app_version[df$app_version == '5.64.5'] <- 1
+df$app_version[df$app_version == '5.65.3'] <- 1
+df$app_version[df$app_version == '5.66.5'] <- 1
+df$app_version[df$app_version == '5.67.1-beta'] <- 1
+df$app_version[df$app_version == '5.67.2'] <- 1
+df$app_version[df$app_version == '5.67.3'] <- 1
+df$app_version[df$app_version == '5.68.1'] <- 1
 df$offer[df$offer == ''] <- "blank"
 df$w9_signed[df$w9_signed == ''] <- "no"
 df$orientation_type[df$orientation_type == ''] <- "none"
-
-
 df$offer_amt[is.na(df$offer_amt)] <- 0
 df$offer_deliv_req[is.na(df$offer_deliv_req)] <- 0
 df$delivs[is.na(df$delivs)] <- 0
         
-       
-        
+ str(df) 
+ 
+df$data_pulled <- '2020/01/24'
+df$data_pulled <- as.Date(df$data_pulled,'%Y/%m/%d')
+## df$first_dash_date <- as.Date(df$first_dash_date,'%Y/%m/%d')
 
+df$days_employed <- round(difftime(df$data_pulled ,df$first_dash_date , units = c("days")))
+df$days_employed <- as.numeric((df$days_employed))
+df$Gig_Rate <- df$delivs/df$days_employed 
+df <- subset(df, select = -c(data_pulled, first_dash_date))
 ```
 
 
@@ -126,11 +227,118 @@ df$delivs[is.na(df$delivs)] <- 0
 
 ```{r logistic_regression}
 # da_mvr_bgc_start + da_mvr_bgc_pass +
-
 logit <- glm(converted ~ age + orientation_type + channel + da_profile_submit + da_orientation_select
-             + da_dropshipping_created + da_oriented + holdout, data = df, family = "binomial")
-
+             + da_dropshipping_created + da_oriented + holdout + applied_submarket + app_version + DENSITY + LOCALE 
+             + x2020POP + vehicle , data = df, family = "binomial")
 summary(logit)
+
+
+```
+
+
+
+```{r linear regression with Gig Rate}
+HireValuedf <- df[!is.na(df$Gig_Rate), ]
+linreg <- lm(Gig_Rate ~ age + da_profile_submit + da_orientation_select
+             + da_dropshipping_created + da_oriented + app_version + DENSITY + LOCALECODE 
+             + x2020POP , data = HireValuedf)
+summary(linreg)
+
+
+```
+
+
+```{r linear regression with relevant variables at each step in application process}
+
+dfstep <- data
+dfstep$appsubmitted <- ifelse(!is.na(data$da_profile_submit), 1, 0)
+dfstep$mvrstart <- ifelse(!is.na(data$da_mvr_bgc_start), 1, 0)
+dfstep$mvrpassed <- ifelse(!is.na(data$da_mvr_bgc_pass), 1, 0)
+dfstep$criminalstart <- ifelse(!is.na(data$da_crim_bgc_start), 1, 0)
+dfstep$criminalpassed <- ifelse(!is.na(data$da_crim_bgc_pass), 1, 0)
+dfstep$orientated <- ifelse(!is.na(data$da_oriented), 1, 0)
+dfstep$activated <- ifelse(!is.na(data$da_activated), 1, 0)
+dfstep$plannedfirstdash <- ifelse(!is.na(data$da_pfd), 1, 0)
+dfstep$converted <- ifelse(!is.na(data$da_first_dash), 1, 0)
+
+##Gate 1: Application Submit
+AppSubmitLogit <- glm(appsubmitted ~ age + DENSITY + LOCALE 
+             + x2020POP + vehicle , data = dfstep, family = "binomial")
+summary(AppSubmitLogit)
+
+dfstep$appsubmitted <- replace(dfstep$appsubmitted, dfstep$appsubmitted == 0, NA)
+dfstep2 <- dfstep[!is.na(dfstep$appsubmitted), ]
+
+##Gate 2: MVR Check
+
+MVRCheckLogit <- glm(mvrstart ~ age + DENSITY + LOCALE 
+             + x2020POP + vehicle , data = dfstep2, family = "binomial")
+summary(MVRCheckLogit)
+
+dfstep2$mvrpassed <- replace(dfstep2$mvrpassed, dfstep2$mvrpassed == 0, NA)
+dfstep3 <- dfstep2[!is.na(dfstep2$mvrpassed), ]
+
+##Gate 3: Criminal BG Check
+
+criminalBGLogit <- glm(criminalstart ~ age + DENSITY + LOCALE 
+             + x2020POP + vehicle , data = dfstep3, family = "binomial")
+summary(criminalBGLogit)
+
+dfstep3$criminalpassed <- replace(dfstep3$criminalpassed, dfstep3$criminalpassed == 0, NA)
+dfstep4 <- dfstep3[!is.na(dfstep3$criminalpassed), ]
+
+##Gate 4: Completed Orietation
+
+orientationLogit <- glm(orientated ~ age + DENSITY + LOCALE 
+             + x2020POP + vehicle , data = dfstep4, family = "binomial")
+summary(orientationLogit)
+
+dfstep4$orientated <- replace(dfstep4$orientated, dfstep4$orientated == 0, NA)
+dfstep5 <- dfstep4[!is.na(dfstep4$orientated), ]
+
+##Gate 5: Activated Account
+
+activationLogit <- glm(activated ~ age + DENSITY + LOCALE 
+             + x2020POP + vehicle , data = dfstep5, family = "binomial")
+summary(activationLogit)
+
+dfstep5$activated <- replace(dfstep5$activated, dfstep5$activated == 0, NA)
+dfstep6 <- dfstep5[!is.na(dfstep5$activated), ]
+
+##Gate 6: Scheduled First Dash
+
+pfdLogit <- glm(plannedfirstdash ~ age + DENSITY + LOCALE 
+             + x2020POP + vehicle , data = dfstep6, family = "binomial")
+summary(pfdLogit)
+
+dfstep6$plannedfirstdash <- replace(dfstep6$plannedfirstdash, dfstep6$plannedfirstdash == 0, NA)
+dfstep7 <- dfstep6[!is.na(dfstep6$plannedfirstdash), ]
+
+##Gate 7: Converted
+
+convertLogit <- glm(converted ~ age + DENSITY + LOCALE 
+             + x2020POP + vehicle , data = dfstep7, family = "binomial")
+summary(convertLogit)
+
+```
+
+
+
+```{r tree}
+
+tree <- df %>% dplyr::select(age, app_version, phone_model, phone_os, orientation_type, channel, vehicle, offer, offer_amt, applied_submarket, LOCALE, x2020POP, DENSITY, converted)
+
+### Split data into traiing/test index ###
+set.seed(27)
+train <- sample(c(TRUE,FALSE), nrow(tree), rep=TRUE, prob = c(0.6,0.4))
+test <- (!train)
+df_train <- df[train,]
+
+### Growing a decision tree ###
+
+library(tree)
+
+mod.tree <- tree(converted ~. = df_train, mindev = 0.001, minsize = 10 )
 
 
 ```
