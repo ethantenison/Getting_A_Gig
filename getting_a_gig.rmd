@@ -89,7 +89,6 @@ Everything before submitting profile has been removed. Even after profile submis
 -first_dash_date, this is removed after the converted variable is created 
 -planned_time 
 -apply_date (this value is important if we need to calculate new day variables)
--applied_submarket
 -planned_sp
 -planned_sm 
 -offer_end
@@ -133,7 +132,12 @@ data$first_dash_date <- as.character(data$first_dash_date)
 
 
 #Leads that converted are given a 1 in the converted column 
+<<<<<<< HEAD
 df <- data %>% mutate(converted = ifelse(!is.na(data$first_dash_date) & data$da_first_dash <=45, 1, 0)) %>% 
+=======
+
+df <- data %>% mutate(converted = ifelse(!is.na(data$first_dash_date), 1, 0)) %>% 
+>>>>>>> 0c9b70bbb0d87ae8ac18d3f71f7aca395a23485c
         filter(!is.na(submit_profile_time)) %>% 
         filter(is_waitlist != "waitlist") %>% 
         filter(!is.na(age)) %>% 
@@ -163,6 +167,11 @@ df$first_dash_wkd <- weekdays(df$first_dash_date)
 df <- df %>%
         select(-c("da_activated", "background_submit_date", "submit_profile_time", "orientation_selection_time","orientation_start_time", "mvr_initiated","mvr_cleared","criminal_initiated","criminal_cleared", "orient_date", "start_date", "planned_time", "waitlist_end_date" ,"dropship_kit_ordered","apply_date","planned_sp", "planned_sm", "offer_end", "is_waitlist", "current_wl_status","dash_day","da_bgc_info_sub", "x", "dasher_applicant_id", "dasher_id", "zip_code" ))
 # Filling in blank data 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 0c9b70bbb0d87ae8ac18d3f71f7aca395a23485c
 df$phone_model[df$phone_model == ''] <- "unknown"
 df$phone_os[df$phone_os == ''] <- "unknown"
 df$app_version[df$app_version == ''] <- 0
@@ -206,10 +215,15 @@ df$app_version[df$app_version == '5.68.1'] <- 1
 df$offer[df$offer == ''] <- "blank"
 df$w9_signed[df$w9_signed == ''] <- "no"
 df$orientation_type[df$orientation_type == ''] <- "none"
+<<<<<<< HEAD
+=======
+
+>>>>>>> 0c9b70bbb0d87ae8ac18d3f71f7aca395a23485c
 df$offer_amt[is.na(df$offer_amt)] <- 0
 df$offer_deliv_req[is.na(df$offer_deliv_req)] <- 0
 df$delivs[is.na(df$delivs)] <- 0
         
+<<<<<<< HEAD
  str(df) 
  
 df$data_pulled <- '2020/01/24'
@@ -220,6 +234,14 @@ df$days_employed <- round(difftime(df$data_pulled ,df$first_dash_date , units = 
 df$days_employed <- as.numeric((df$days_employed))
 df$Gig_Rate <- df$delivs/df$days_employed 
 df <- subset(df, select = -c(data_pulled, first_dash_date))
+=======
+       
+
+        
+ str(df)      
+                
+
+>>>>>>> 0c9b70bbb0d87ae8ac18d3f71f7aca395a23485c
 ```
 
 
@@ -228,12 +250,17 @@ df <- subset(df, select = -c(data_pulled, first_dash_date))
 ```{r logistic_regression}
 # da_mvr_bgc_start + da_mvr_bgc_pass +
 logit <- glm(converted ~ age + orientation_type + channel + da_profile_submit + da_orientation_select
+<<<<<<< HEAD
              + da_dropshipping_created + da_oriented + holdout + applied_submarket + app_version + DENSITY + LOCALE 
              + x2020POP + vehicle , data = df, family = "binomial")
+=======
+             + da_dropshipping_created + da_oriented + holdout + applied_submarket, data = df, family = "binomial")
+>>>>>>> 0c9b70bbb0d87ae8ac18d3f71f7aca395a23485c
 summary(logit)
 
 
 ```
+<<<<<<< HEAD
 
 
 
@@ -341,4 +368,10 @@ library(tree)
 mod.tree <- tree(converted ~. = df_train, mindev = 0.001, minsize = 10 )
 
 
+=======
+```{r linear regression with relavent variables at each step in application process}
+
+
+
+>>>>>>> 0c9b70bbb0d87ae8ac18d3f71f7aca395a23485c
 ```
