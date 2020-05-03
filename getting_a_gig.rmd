@@ -8,7 +8,6 @@ output: html_document
 ```{r libraries, message=FALSE, warning=FALSE}
 list.of.packages <-
         c(
-                "tidyverse",
                 "googledrive",
                 "janitor",
                 "dplyr",
@@ -18,7 +17,6 @@ list.of.packages <-
            )
 #new.packages <-list.of.packages[!(list.of.packages %in% installed.packages()[, "Package"])]
 library(googledrive)
-library(tidyverse)
 library(janitor)
 library(dplyr)
 library(caret)
@@ -89,6 +87,7 @@ Everything before submitting profile has been removed. Even after profile submis
 -first_dash_date, this is removed after the converted variable is created 
 -planned_time 
 -apply_date (this value is important if we need to calculate new day variables)
+-applied_submarket
 -planned_sp
 -planned_sm 
 -offer_end
@@ -132,12 +131,7 @@ data$first_dash_date <- as.character(data$first_dash_date)
 
 
 #Leads that converted are given a 1 in the converted column 
-<<<<<<< HEAD
 df <- data %>% mutate(converted = ifelse(!is.na(data$first_dash_date) & data$da_first_dash <=45, 1, 0)) %>% 
-=======
-
-df <- data %>% mutate(converted = ifelse(!is.na(data$first_dash_date), 1, 0)) %>% 
->>>>>>> 0c9b70bbb0d87ae8ac18d3f71f7aca395a23485c
         filter(!is.na(submit_profile_time)) %>% 
         filter(is_waitlist != "waitlist") %>% 
         filter(!is.na(age)) %>% 
@@ -166,65 +160,26 @@ df$first_dash_wkd <- weekdays(df$first_dash_date)
 
 df <- df %>%
         select(-c("da_activated", "background_submit_date", "submit_profile_time", "orientation_selection_time","orientation_start_time", "mvr_initiated","mvr_cleared","criminal_initiated","criminal_cleared", "orient_date", "start_date", "planned_time", "waitlist_end_date" ,"dropship_kit_ordered","apply_date","planned_sp", "planned_sm", "offer_end", "is_waitlist", "current_wl_status","dash_day","da_bgc_info_sub", "x", "dasher_applicant_id", "dasher_id", "zip_code" ))
+
 # Filling in blank data 
-<<<<<<< HEAD
-=======
+df$phone_model <- as.character(df$phone_model)
+df$phone_os <- as.character(df$phone_os)
+df$app_version <- as.character(df$app_version)
+df$w9_signed <- as.character(df$w9_signed)
+df$orientation_type <- as.character(df$orientation_type)
+df$offer <- as.character(df$offer)
 
-
->>>>>>> 0c9b70bbb0d87ae8ac18d3f71f7aca395a23485c
 df$phone_model[df$phone_model == ''] <- "unknown"
 df$phone_os[df$phone_os == ''] <- "unknown"
-df$app_version[df$app_version == ''] <- 0
-df$app_version[df$app_version == '2.42.0'] <- 1
-df$app_version[df$app_version == '5.61.4'] <- 1
-df$app_version[df$app_version == '2.2.0'] <- 1
-df$app_version[df$app_version == '2.26.1'] <- 1
-df$app_version[df$app_version == '2.28.0'] <- 1
-df$app_version[df$app_version == '2.30.0'] <- 1
-df$app_version[df$app_version == '2.30.1'] <- 1
-df$app_version[df$app_version == '2.32.0'] <- 1
-df$app_version[df$app_version == '2.24.0'] <- 1
-df$app_version[df$app_version == '2.32.1'] <- 1
-df$app_version[df$app_version == '2.34.0'] <- 1
-df$app_version[df$app_version == '2.36.0'] <- 1
-df$app_version[df$app_version == '2.37.0'] <- 1
-df$app_version[df$app_version == '2.38.0'] <- 1
-df$app_version[df$app_version == '2.4.0'] <- 1
-df$app_version[df$app_version == '2.40.0'] <- 1
-df$app_version[df$app_version == '2.44.0'] <- 1
-df$app_version[df$app_version == '5.29.3'] <- 1
-df$app_version[df$app_version == '5.31.8'] <- 1
-df$app_version[df$app_version == '5.43.10'] <- 1
-df$app_version[df$app_version == '5.43.8'] <- 1
-df$app_version[df$app_version == '5.56.5'] <- 1
-df$app_version[df$app_version == '5.58.4'] <- 1
-df$app_version[df$app_version == '5.59.3'] <- 1
-df$app_version[df$app_version == '5.62.2'] <- 1
-df$app_version[df$app_version == '5.63.3'] <- 1
-df$app_version[df$app_version == '5.63.4'] <- 1
-df$app_version[df$app_version == '5.63.5'] <- 1
-df$app_version[df$app_version == '5.63.6'] <- 1
-df$app_version[df$app_version == '5.64.4'] <- 1
-df$app_version[df$app_version == '5.64.5'] <- 1
-df$app_version[df$app_version == '5.65.3'] <- 1
-df$app_version[df$app_version == '5.66.5'] <- 1
-df$app_version[df$app_version == '5.67.1-beta'] <- 1
-df$app_version[df$app_version == '5.67.2'] <- 1
-df$app_version[df$app_version == '5.67.3'] <- 1
-df$app_version[df$app_version == '5.68.1'] <- 1
+df$app_version <- ifelse(df$app_version == "", "0", "1") #here 1 is set to equal that they used a phone
+df <- df %>% rename(phone_ornot = app_version)
+df$phone_ornot <- as.factor(df$phone_ornot)
 df$offer[df$offer == ''] <- "blank"
 df$w9_signed[df$w9_signed == ''] <- "no"
 df$orientation_type[df$orientation_type == ''] <- "none"
-<<<<<<< HEAD
-=======
-
->>>>>>> 0c9b70bbb0d87ae8ac18d3f71f7aca395a23485c
 df$offer_amt[is.na(df$offer_amt)] <- 0
 df$offer_deliv_req[is.na(df$offer_deliv_req)] <- 0
 df$delivs[is.na(df$delivs)] <- 0
-        
-<<<<<<< HEAD
- str(df) 
  
 df$data_pulled <- '2020/01/24'
 df$data_pulled <- as.Date(df$data_pulled,'%Y/%m/%d')
@@ -234,14 +189,11 @@ df$days_employed <- round(difftime(df$data_pulled ,df$first_dash_date , units = 
 df$days_employed <- as.numeric((df$days_employed))
 df$Gig_Rate <- df$delivs/df$days_employed 
 df <- subset(df, select = -c(data_pulled, first_dash_date))
-=======
-       
 
-        
- str(df)      
-                
+#After changing variables to characters in order to fill in missing information, I changed all the character variables back to factor which is important when running the models 
+df[sapply(df, is.character)] <- lapply(df[sapply(df, is.character)], as.factor)
 
->>>>>>> 0c9b70bbb0d87ae8ac18d3f71f7aca395a23485c
+
 ```
 
 
@@ -250,17 +202,12 @@ df <- subset(df, select = -c(data_pulled, first_dash_date))
 ```{r logistic_regression}
 # da_mvr_bgc_start + da_mvr_bgc_pass +
 logit <- glm(converted ~ age + orientation_type + channel + da_profile_submit + da_orientation_select
-<<<<<<< HEAD
              + da_dropshipping_created + da_oriented + holdout + applied_submarket + app_version + DENSITY + LOCALE 
              + x2020POP + vehicle , data = df, family = "binomial")
-=======
-             + da_dropshipping_created + da_oriented + holdout + applied_submarket, data = df, family = "binomial")
->>>>>>> 0c9b70bbb0d87ae8ac18d3f71f7aca395a23485c
 summary(logit)
 
 
 ```
-<<<<<<< HEAD
 
 
 
@@ -276,17 +223,15 @@ summary(linreg)
 
 
 ```{r linear regression with relevant variables at each step in application process}
-
-dfstep <- data
-dfstep$appsubmitted <- ifelse(!is.na(data$da_profile_submit), 1, 0)
-dfstep$mvrstart <- ifelse(!is.na(data$da_mvr_bgc_start), 1, 0)
-dfstep$mvrpassed <- ifelse(!is.na(data$da_mvr_bgc_pass), 1, 0)
-dfstep$criminalstart <- ifelse(!is.na(data$da_crim_bgc_start), 1, 0)
-dfstep$criminalpassed <- ifelse(!is.na(data$da_crim_bgc_pass), 1, 0)
-dfstep$orientated <- ifelse(!is.na(data$da_oriented), 1, 0)
-dfstep$activated <- ifelse(!is.na(data$da_activated), 1, 0)
-dfstep$plannedfirstdash <- ifelse(!is.na(data$da_pfd), 1, 0)
-dfstep$converted <- ifelse(!is.na(data$da_first_dash), 1, 0)
+dfstep <- df
+dfstep$appsubmitted <- ifelse(!is.na(df$da_profile_submit), 1, 0)
+dfstep$mvrstart <- ifelse(!is.na(df$da_mvr_bgc_start), 1, 0)
+dfstep$mvrpassed <- ifelse(!is.na(df$da_mvr_bgc_pass), 1, 0)
+dfstep$criminalstart <- ifelse(!is.na(df$da_crim_bgc_start), 1, 0)
+dfstep$criminalpassed <- ifelse(!is.na(df$da_crim_bgc_pass), 1, 0)
+dfstep$orientated <- ifelse(!is.na(df$da_oriented), 1, 0)
+dfstep$plannedfirstdash <- ifelse(!is.na(df$da_pfd), 1, 0)
+dfstep$converted <- ifelse(!is.na(df$da_first_dash), 1, 0)
 
 ##Gate 1: Application Submit
 AppSubmitLogit <- glm(appsubmitted ~ age + DENSITY + LOCALE 
@@ -323,55 +268,270 @@ summary(orientationLogit)
 dfstep4$orientated <- replace(dfstep4$orientated, dfstep4$orientated == 0, NA)
 dfstep5 <- dfstep4[!is.na(dfstep4$orientated), ]
 
-##Gate 5: Activated Account
-
-activationLogit <- glm(activated ~ age + DENSITY + LOCALE 
-             + x2020POP + vehicle , data = dfstep5, family = "binomial")
-summary(activationLogit)
-
-dfstep5$activated <- replace(dfstep5$activated, dfstep5$activated == 0, NA)
-dfstep6 <- dfstep5[!is.na(dfstep5$activated), ]
-
-##Gate 6: Scheduled First Dash
+##Gate 5: Scheduled First Dash
 
 pfdLogit <- glm(plannedfirstdash ~ age + DENSITY + LOCALE 
-             + x2020POP + vehicle , data = dfstep6, family = "binomial")
+             + x2020POP + vehicle , data = dfstep5, family = "binomial")
 summary(pfdLogit)
 
-dfstep6$plannedfirstdash <- replace(dfstep6$plannedfirstdash, dfstep6$plannedfirstdash == 0, NA)
-dfstep7 <- dfstep6[!is.na(dfstep6$plannedfirstdash), ]
+dfstep5$plannedfirstdash <- replace(dfstep5$plannedfirstdash, dfstep5$plannedfirstdash == 0, NA)
+dfstep6 <- dfstep5[!is.na(dfstep5$plannedfirstdash), ]
 
-##Gate 7: Converted
+##Gate 6: Converted
 
 convertLogit <- glm(converted ~ age + DENSITY + LOCALE 
-             + x2020POP + vehicle , data = dfstep7, family = "binomial")
+             + x2020POP + vehicle , data = dfstep6, family = "binomial")
 summary(convertLogit)
+
+
+```
+
+
+```{r non_action bias logistic regression}
+logit_non_action <- glm(converted ~ age + phone_os + channel + vehicle + offer + offer_amt + offer_deliv_req + LOCALE + x2020POP + AREA + DENSITY, data = df, family = "binomial")
+summary(logit_non_action)
+```
+
+
+```{r logistic_regression_da action bias}
+
+logit11<- glm(converted ~ da_profile_submit, data=df, family="binomial")
+logit12<- glm(converted ~ da_mvr_bgc_start, data=df, family="binomial")
+logit13<- glm(converted ~ da_mvr_bgc_pass, data=df, family="binomial")
+logit14<- glm(converted ~ da_orientation_select, data=df, family="binomial")
+logit15<- glm(converted ~ da_dropshipping_created, data=df, family="binomial")
+logit16<- glm(converted ~ da_crim_bgc_start, data=df, family="binomial")
+logit17<- glm(converted ~ da_crim_bgc_pass, data=df, family="binomial")
+logit18<- glm(converted ~ da_oriented, data=df, family="binomial")
+logit19<- glm(converted ~ da_pfd, data=df, family="binomial")
+
+summary(logit11)
+summary(logit12)
+summary(logit13)
+summary(logit14)
+summary(logit15)
+summary(logit16)
+summary(logit17)
+summary(logit18)
+summary(logit19)
+
 
 ```
 
 
 
+
+
 ```{r tree}
 
-tree <- df %>% dplyr::select(age, app_version, phone_model, phone_os, orientation_type, channel, vehicle, offer, offer_amt, applied_submarket, LOCALE, x2020POP, DENSITY, converted)
+tree <- df %>% dplyr::select(age, phone_ornot, phone_model, phone_os, orientation_type, channel, vehicle, offer, offer_amt, LOCALE, x2020POP, DENSITY, converted) #I had to take submarket out because the tree tmethod has a 32 level limit 
 
 ### Split data into traiing/test index ###
 set.seed(27)
 train <- sample(c(TRUE,FALSE), nrow(tree), rep=TRUE, prob = c(0.6,0.4))
 test <- (!train)
-df_train <- df[train,]
+df_train <- tree[train,]
 
 ### Growing a decision tree ###
 
 library(tree)
 
-mod.tree <- tree(converted ~. = df_train, mindev = 0.001, minsize = 10 )
+mod.tree <- tree(converted ~., data = df_train, mindev = 0.001, minsize = 10)  
+
+summary(mod.tree)
+
+plot(mod.tree)
+text(mod.tree, pretty = 0)
 
 
-=======
-```{r linear regression with relavent variables at each step in application process}
+### Prune tree with CV ###
+
+#Find the best size of the tree - the point where deviance(dev) is lowest
+mod.tree.cv <- cv.tree(mod.tree, FUN = prune.tree)
+mod.tree.cv
+
+plot(mod.tree.cv$size, mod.tree.cv$dev, type = "b")
+#Seems like best size of the tree is 3 - lets use this to prune the tree
+
+mod.tree.prune <- prune.tree(mod.tree, best = 3)
+
+summary(mod.tree.prune)
+
+plot(mod.tree.prune)
+text(mod.tree.prune, pretty = 0)
+
+### Predict salary, using the pruned tree ###
+tree$convert.Pred <- predict(mod.tree.prune, newdata = tree)
+
+#Reapply 20% classification threshold for predicted salary
+tree$convert.Pred.Class <- ifelse(tree$convert.Pred > quantile(tree$convert.Pred, probs = 0.5), "Above 50%", "Below")
+table(tree$convert.Pred.Class)
+
+#For training set
+print("Train set")
+table(TrueConvert = tree$convert.Pred.Class[train], PredConvert = tree$convert.Pred.Class[train]) #How many instances were misclassified? Error rates?
+#For test set
+print("Test set")
+table(TrueConvert = tree$convert.Pred.Class[test], PredConvert = tree$convert.Pred.Class[test]) #How many instances were misclassified? Error rates?
+
+```
 
 
 
->>>>>>> 0c9b70bbb0d87ae8ac18d3f71f7aca395a23485c
+```{r histogram_of_converted}
+converted <- filter(df, converted == 1)
+converted <- filter(converted, age <= 85)
+p <- ggplot(converted) +
+    geom_histogram(aes(x = age, y = ..density..),
+   
+                                   binwidth = 1, fill = "blue", color = "black")
+p
+
+```
+
+
+```{r histogram_stacked_age}
+theme_set(theme_bw())
+both <- filter(df, age <= 85)
+both$converted <- as.factor(both$converted)
+b <- ggplot(data = both) +
+    geom_histogram(aes(x = age, y = ..density.., fill = converted),color = "white", binwidth = 1) +
+    theme(
+         legend.key = element_rect(fill = "transparent"), 
+         legend.spacing = unit(-1, "lines"),
+         panel.background = element_blank(),
+         axis.line = element_line(colour = "black"),
+         text=element_text(face = "bold", size=12),
+         axis.title.y = element_text(vjust = 2),
+         plot.title = element_text(hjust = 0.5)) +
+    xlab("Age") +
+    ylab("Percentage of Applicants") +
+    labs(fill = "Converted", title = "Percentage of Total Applicants by Conversion factor")
+b
+
+```
+
+```{r hist_vehicle}
+
+theme_set(theme_bw())
+both <- df
+both$converted <- as.factor(both$converted)
+b <- ggplot(data = both, aes(x=vehicle, fill = converted)) +
+    geom_bar(color = "white") +
+    theme(
+         legend.key = element_rect(fill = "transparent"), 
+         legend.spacing = unit(-1, "lines"),
+         panel.background = element_blank(),
+         axis.line = element_line(colour = "black"),
+         text=element_text(face = "bold", size=12),
+         axis.title.y = element_text(vjust = 2),
+         plot.title = element_text(hjust = 0.5)) +
+    xlab("Vehicle Type") +
+    ylab("Total Applicants") +
+    labs(fill = "Converted", title = "Total Applicants by Vehicle and Conversion factor")
+b
+
+```
+
+
+
+```{r kernel_density}
+
+kernel <- df %>% group_by(age) %>% summarize(pct_convert = mean(converted)) %>% filter(age <= 85)
+
+
+k <- ggplot(kernel, aes(x=age, y=pct_convert)) +
+    geom_line(color = "#CC4678FF", size = 1,stat="identity") +
+    theme(
+           legend.key = element_rect(fill = "transparent"), 
+           legend.spacing = unit(-1, "lines"),
+           panel.background = element_blank(),
+           axis.line = element_line(colour = "black"),
+           text=element_text(face = "bold", size=12),
+           axis.title.y = element_text(vjust = 2),
+           plot.title = element_text(hjust = 0.5)) +
+      xlab("Age") +
+      ylab("Percent Conversion") +
+      labs(title = "Percentage of applicants who convert by age")
+
+k
+
+```
+
+```{r drives}
+
+drives <- df %>% filter(converted == 1) %>% group_by(age) %>% summarize(avg_drives = mean(delivs)) %>% filter(age <= 85) 
+
+
+d <- ggplot(drives, aes(x=age, y=avg_drives)) +
+      geom_line(color = "#0D0887FF", size = 1,stat="identity") +
+      theme(
+             legend.key = element_rect(fill = "transparent"), 
+             legend.spacing = unit(-1, "lines"),
+             panel.background = element_blank(),
+             axis.line = element_line(colour = "black"),
+             text=element_text(face = "bold", size=12),
+             axis.title.y = element_text(vjust = 2),
+             plot.title = element_text(hjust = 0.5)) +
+        xlab("Age") +
+        ylab("Number of Deliveries") +
+        labs(title = "Average Deliveries by Age")
+
+d
+
+
+```
+
+
+```{r drives_vehcile}
+
+drives_vehicle <- df %>% filter(converted == 1) %>% group_by(vehicle) %>% summarize(avg_drives = mean(delivs))
+
+theme_set(theme_bw())
+
+b <- ggplot(data = drives_vehicle, aes(x=vehicle, y = avg_drives, fill = vehicle)) +
+    geom_bar(color = "white", stat = "identity") +
+    theme(
+         legend.key = element_rect(fill = "transparent"), 
+         legend.spacing = unit(-1, "lines"),
+         panel.background = element_blank(),
+         axis.line = element_line(colour = "black"),
+         text=element_text(face = "bold", size=12),
+         axis.title.y = element_text(vjust = 2),
+         plot.title = element_text(hjust = 0.5)) +
+    xlab("Vehicle Type") +
+    ylab("Average Deliveries") +
+    labs(fill = "Converted", title = "Average Deliveries by Vehicle")
+b
+
+
+```
+
+
+```{r age_vehicle_average}
+
+add_count_var <- mutate(df, n =1)
+
+add_count_var <- filter(add_count_var, age <= 85)
+
+age_avg_vehicle_per <- tbl_df(add_count_var)
+
+age_avg_vehicle_per <- age_avg_vehicle_per %>% group_by(age, vehicle) %>% summarise (n = n()) %>% mutate(freq = n / sum(n))
+
+# Visualization
+ggplot(age_avg_vehicle_per, aes(x = age, y = freq)) + 
+  geom_line(aes(color = vehicle),  size = 1) +
+    theme(
+         legend.key = element_rect(fill = "transparent"), 
+         legend.spacing = unit(-1, "lines"),
+         panel.background = element_blank(),
+         axis.line = element_line(colour = "black"),
+         text=element_text(face = "bold", size=12),
+         axis.title.y = element_text(vjust = 2),
+         plot.title = element_text(hjust = 0.5)) +
+    xlab("Age") +
+    ylab("Proportion of Vehicle") +
+    labs(fill = "Vehicle", title = "Proportion of Vehicles by Age")
+
+
 ```
