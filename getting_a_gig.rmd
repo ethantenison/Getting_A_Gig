@@ -360,19 +360,53 @@ summary(mod.tree.prune)
 plot(mod.tree.prune)
 text(mod.tree.prune, pretty = 0)
 
-### Predict salary, using the pruned tree ###
+### Predict Conversion, using the pruned tree ###
 tree$convert.Pred <- predict(mod.tree.prune, newdata = tree)
 
-#Reapply 20% classification threshold for predicted salary
-tree$convert.Pred.Class <- ifelse(tree$convert.Pred > quantile(tree$convert.Pred, probs = 0.5), "Above 50%", "Below")
+#Reapply 50% classification threshold for predicted conversion
+tree$convert.Pred.Class <- ifelse(tree$convert.Pred > quantile(tree$convert.Pred, probs = 0.5), "Convert", "Did Not Convert")
 table(tree$convert.Pred.Class)
+
+tree$converted <- as.character(tree$converted)
+tree <- tree %>% mutate(converted = ifelse(converted == "1", "Convert", "Did Not Convert"))
+
+
 
 #For training set
 print("Train set")
-table(TrueConvert = tree$convert.Pred.Class[train], PredConvert = tree$convert.Pred.Class[train]) #How many instances were misclassified? Error rates?
+table(TrueConvert = tree$converted[train], PredConvert = tree$convert.Pred.Class[train]) #How many instances were misclassified? Error rates?
+
+#223527/306194
+#Accuracy Rate = 73.00%
+
 #For test set
 print("Test set")
-table(TrueConvert = tree$convert.Pred.Class[test], PredConvert = tree$convert.Pred.Class[test]) #How many instances were misclassified? Error rates?
+table(TrueConvert = tree$converted[test], PredConvert = tree$convert.Pred.Class[test]) #How many instances were misclassified? Error rates?
+
+#148609/203458
+#Accuracy Rate = 73.04%
+
+```
+
+
+```{r random_forest}
+
+library(randomForest)
+tree <- df %>% dplyr::select(age, phone_ornot, phone_model, phone_os, orientation_type, channel, vehicle, offer, offer_amt, LOCALE, x2020POP, DENSITY, converted) #I had to take submarket out because the tree tmethod has a 32 level limit 
+
+set.seed(27)
+train <- sample(nrow(tree), 0.7*nrow(tree), replace = FALSE)
+TrainSet <- tree[train,]
+ValidSet <- tree[-train,]
+summary(TrainSet)
+summary(ValidSet)
+
+
+
+# Create a Random Forest model with default parameters
+model1 <- randomForest(converted ~ ., data = TrainSet, ntree = 100, mtry = 6, do.trace = TRUE, importance = TRUE)
+model1
+
 
 ```
 
