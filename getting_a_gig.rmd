@@ -197,12 +197,14 @@ df[sapply(df, is.character)] <- lapply(df[sapply(df, is.character)], as.factor)
 ```
 
 
+
+
 ## Logistic Regression
 
 ```{r logistic_regression}
 # da_mvr_bgc_start + da_mvr_bgc_pass +
 logit <- glm(converted ~ age + orientation_type + channel + da_profile_submit + da_orientation_select
-             + da_dropshipping_created + da_oriented + holdout + applied_submarket + app_version + DENSITY + LOCALE 
+             + da_dropshipping_created + da_oriented + holdout + applied_submarket + phone_ornot + DENSITY + LOCALE 
              + x2020POP + vehicle , data = df, family = "binomial")
 summary(logit)
 
@@ -214,7 +216,7 @@ summary(logit)
 ```{r linear regression with Gig Rate}
 HireValuedf <- df[!is.na(df$Gig_Rate), ]
 linreg <- lm(Gig_Rate ~ age + da_profile_submit + da_orientation_select
-             + da_dropshipping_created + da_oriented + app_version + DENSITY + LOCALECODE 
+             + da_dropshipping_created + da_oriented + phone_ornot + DENSITY + LOCALE 
              + x2020POP , data = HireValuedf)
 summary(linreg)
 
@@ -223,6 +225,7 @@ summary(linreg)
 
 
 ```{r linear regression with relevant variables at each step in application process}
+
 dfstep <- df
 dfstep$appsubmitted <- ifelse(!is.na(df$da_profile_submit), 1, 0)
 dfstep$mvrstart <- ifelse(!is.na(df$da_mvr_bgc_start), 1, 0)
@@ -283,9 +286,7 @@ convertLogit <- glm(converted ~ age + DENSITY + LOCALE
              + x2020POP + vehicle , data = dfstep6, family = "binomial")
 summary(convertLogit)
 
-
 ```
-
 
 ```{r non_action bias logistic regression}
 logit_non_action <- glm(converted ~ age + phone_os + channel + vehicle + offer + offer_amt + offer_deliv_req + LOCALE + x2020POP + AREA + DENSITY, data = df, family = "binomial")
@@ -317,6 +318,20 @@ summary(logit19)
 
 
 ```
+
+
+```{r da in last step in the funnel and control}
+logit20<- glm(converted ~ da_pfd+age + phone_os + channel + vehicle + offer + offer_amt + offer_deliv_req + LOCALE + x2020POP + AREA + DENSITY, data=df, family="binomial")
+summary(logit20)
+```
+
+
+
+
+
+
+
+
 
 
 
