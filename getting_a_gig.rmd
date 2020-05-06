@@ -2,7 +2,9 @@
 title: "Getting a Gig"
 author: "Sean Corcoran, Sarah Dodamead, Christopher Matos, Ethan Tenison"
 date: "3/9/2020"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 
 ```{r libraries, message=FALSE, warning=FALSE}
@@ -20,6 +22,7 @@ library(googledrive)
 library(janitor)
 library(dplyr)
 library(caret)
+library(stargazer)
 ```
 
 ## Pulling in the data 
@@ -71,7 +74,7 @@ bar
 Everything before submitting profile has been removed. Even after profile submission, leads that have not provided their age have also been removed.
 
 #### Variables that have been removed: 
--da_activated
+-da_activated, this variable is no longer being used  
 -background_submit_Date
 -submit_profile_time, data before this point is insufficient 
 -orientation_selection_time
@@ -108,7 +111,7 @@ Everything before submitting profile has been removed. Even after profile submis
 ### Variables that have been imputed: 
 -phone model, blanks set to unknown
 -phone os, blanks set to unknown
--app_version, blanks set to unknown
+-phone_ornot, blanks set to unknown
 -w9_signed, set to no 
 -orientation_type, set to none if blank 
 -offer, blanks set to none 
@@ -196,10 +199,10 @@ df <- subset(df, select = -c(data_pulled, first_dash_date))
 #After changing variables to characters in order to fill in missing information, I changed all the character variables back to factor which is important when running the models 
 df[sapply(df, is.character)] <- lapply(df[sapply(df, is.character)], as.factor)
 
+ str(df) 
+
 
 ```
-
-
 
 
 ## Logistic Regression
@@ -207,13 +210,18 @@ df[sapply(df, is.character)] <- lapply(df[sapply(df, is.character)], as.factor)
 ```{r logistic_regression}
 # da_mvr_bgc_start + da_mvr_bgc_pass +
 logit <- glm(converted ~ age + orientation_type + channel + da_profile_submit + da_orientation_select
-             + da_dropshipping_created + da_oriented + holdout + applied_submarket + phone_ornot + DENSITY + LOCALE 
+             + da_dropshipping_created + da_oriented + phone_ornot + DENSITY + LOCALE 
              + x2020POP + vehicle , data = df, family = "binomial")
 summary(logit)
 
 
 ```
+```{r}
+#Logistic Regression Summary 
 
+stargazer(logit, title = "Regression Results",  type = 'html', out= "logit.html", no.space = TRUE)
+
+```
 
 
 ```{r linear regression with Gig Rate}
@@ -223,6 +231,12 @@ linreg <- lm(Gig_Rate ~ age + da_profile_submit + da_orientation_select
              + x2020POP , data = HireValuedf)
 summary(linreg)
 
+
+```
+```{r}
+#Logistic Regression Summary 
+
+stargazer(linreg, title = "Linear Regression Gig-Rate Results",  type = 'html', out= "linreg.html", no.space = TRUE)
 
 ```
 
@@ -265,7 +279,7 @@ summary(criminalBGLogit)
 dfstep3$criminalpassed <- replace(dfstep3$criminalpassed, dfstep3$criminalpassed == 0, NA)
 dfstep4 <- dfstep3[!is.na(dfstep3$criminalpassed), ]
 
-##Gate 4: Completed Orietation
+##Gate 4: Completed Orientation
 
 orientationLogit <- glm(orientated ~ age + DENSITY + LOCALE 
              + x2020POP + vehicle , data = dfstep4, family = "binomial")
@@ -290,13 +304,15 @@ convertLogit <- glm(converted ~ age + DENSITY + LOCALE
 summary(convertLogit)
 
 ```
+```{r}
+#Gate Logistic Regression Summary 
 
+stargazer(AppSubmitLogit, MVRCheckLogit, criminalBGLogit, orientationLogit, pfdLogit, convertLogit, title = "Regression Gate Results",  type = 'latex', out= "stats.html", no.space = TRUE)
+```
 ```{r non_action bias logistic regression}
 logit_non_action <- glm(converted ~ age + phone_os + channel + vehicle + offer + offer_amt + offer_deliv_req + LOCALE + x2020POP + AREA + DENSITY, data = df, family = "binomial")
 summary(logit_non_action)
 ```
-
-
 ```{r logistic_regression_da action bias}
 
 logit11<- glm(converted ~ da_profile_submit, data=df, family="binomial")
@@ -331,7 +347,6 @@ summary(logit20)
 
 
 
-
 ```{r tree_total}
 
 tree <- df %>% dplyr::select(age, phone_ornot, phone_model, phone_os, orientation_type, channel, vehicle, offer, offer_amt, LOCALE, x2020POP, DENSITY, converted) #I had to take submarket out because the tree tmethod has a 32 level limit 
@@ -351,7 +366,7 @@ mod.tree <- tree(converted ~., data = df_train, mindev = 0.001, minsize = 10)
 summary(mod.tree)
 
 plot(mod.tree)
-text(mod.tree, pretty = 0)
+text(mod.tree, pretty = 1)
 
 
 ### Prune tree with CV ###
@@ -367,8 +382,11 @@ mod.tree.prune <- prune.tree(mod.tree, best = 3)
 
 summary(mod.tree.prune)
 
-plot(mod.tree.prune)
-text(mod.tree.prune, pretty = 0)
+
+par(xpd = TRUE)
+plot(mod.tree.prune, type = "uniform")
+title(main= "Full Funnel Model")
+text(mod.tree.prune, pretty = 1, splits = TRUE, cex=.8)
 
 ### Predict Conversion, using the pruned tree ###
 tree$convert.Pred <- predict(mod.tree.prune, newdata = tree)
@@ -396,6 +414,10 @@ t
 #Accuracy Rate
 (t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2])
 
+print((t[1,1])/ (t[2,1] +t[1,1]))
+print((t[2,2])/ (t[2,2] +t[1,2]))
+
+
 ```
 
 
@@ -418,7 +440,7 @@ mod.tree <- tree(mvrstart ~., data = df_train, mindev = 0.001, minsize = 10)
 summary(mod.tree)
 
 plot(mod.tree)
-text(mod.tree, pretty = 0)
+text(mod.tree, pretty = 1)
 
 
 ### Prune tree with CV ###
@@ -434,8 +456,11 @@ mod.tree.prune <- prune.tree(mod.tree, best = 5)
 
 summary(mod.tree.prune)
 
+
+par(xpd = TRUE)
 plot(mod.tree.prune)
-text(mod.tree.prune, pretty = 0)
+title(main= "Gate #2 Motor Vehicle Registration")
+text(mod.tree.prune, pretty = 1,  splits = TRUE, cex=.8)
 
 ### Predict Conversion, using the pruned tree ###
 tree$convert.Pred <- predict(mod.tree.prune, newdata = tree)
@@ -462,7 +487,8 @@ t
 print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
 
 
-
+print((t[1,1])/ (t[2,1] +t[1,1]))
+print((t[2,2])/ (t[2,2] +t[1,2]))
 
 
 ```
@@ -488,7 +514,7 @@ mod.tree <- tree(criminalstart ~., data = df_train, mindev = 0.001, minsize = 10
 summary(mod.tree)
 
 plot(mod.tree)
-text(mod.tree, pretty = 0)
+text(mod.tree, pretty = 1)
 
 
 ### Prune tree with CV ###
@@ -504,8 +530,14 @@ mod.tree.prune <- prune.tree(mod.tree, best = 4)
 
 summary(mod.tree.prune)
 
+
+par(xpd = TRUE)
 plot(mod.tree.prune)
-text(mod.tree.prune, pretty = 0)
+title(main= "Gate #3 Background Check")
+text(mod.tree.prune, pretty = 1,  splits = TRUE, cex=.8)
+
+
+
 
 ### Predict Conversion, using the pruned tree ###
 tree$convert.Pred <- predict(mod.tree.prune, newdata = tree)
@@ -532,7 +564,8 @@ t
 print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
 
 
-
+print((t[1,1])/ (t[2,1] +t[1,1]))
+print((t[2,2])/ (t[2,2] +t[1,2]))
 ```
 
 
@@ -560,7 +593,7 @@ mod.tree <- tree(orientated ~., data = df_train, mindev = 0.001, minsize = 5)
 summary(mod.tree)
 
 plot(mod.tree)
-text(mod.tree, pretty = 0)
+text(mod.tree, pretty = 1)
 
 
 ### Prune tree with CV ###
@@ -576,8 +609,10 @@ mod.tree.prune <- prune.tree(mod.tree, best = 2)
 
 summary(mod.tree.prune)
 
+par(xpd = TRUE)
 plot(mod.tree.prune)
-text(mod.tree.prune, pretty = 0)
+title(main= "Gate #4 Completed Orientation")
+text(mod.tree.prune, pretty = 1,  splits = TRUE, cex=.8)
 
 ### Predict Conversion, using the pruned tree ###
 tree$convert.Pred <- predict(mod.tree.prune, newdata = tree)
@@ -603,6 +638,8 @@ t
 #Accuracy Rate 
 print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
 
+print((t[1,1])/ (t[2,1] +t[1,1]))
+print((t[2,2])/ (t[2,2] +t[1,2]))
 
 ```
 
@@ -633,7 +670,7 @@ mod.tree <- tree(plannedfirstdash ~., data = df_train, mindev = 0.001, minsize =
 summary(mod.tree)
 
 plot(mod.tree)
-text(mod.tree, pretty = 0)
+text(mod.tree, pretty = 1)
 
 
 ### Prune tree with CV ###
@@ -649,8 +686,12 @@ mod.tree.prune <- prune.tree(mod.tree, best = 4)
 
 summary(mod.tree.prune)
 
+
+par(xpd = TRUE)
 plot(mod.tree.prune)
-text(mod.tree.prune, pretty = 0)
+title(main= "Gate #5 Schedule First Dash")
+text(mod.tree.prune, pretty = 1,  splits = TRUE, cex=.8)
+
 
 ### Predict Conversion, using the pruned tree ###
 tree$convert.Pred <- predict(mod.tree.prune, newdata = tree)
@@ -677,8 +718,11 @@ t
 print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
 
 
-
+print((t[1,1])/ (t[2,1] +t[1,1]))
+print((t[2,2])/ (t[2,2] +t[1,2]))
 ```
+
+
 
 ```{r converted}
 # Step 6 Conversion 
@@ -703,7 +747,7 @@ mod.tree <- tree(converted ~., data = df_train, mindev = 0.001, minsize = 5)
 summary(mod.tree)
 
 plot(mod.tree)
-text(mod.tree, pretty = 0)
+text(mod.tree, pretty = 1)
 
 
 ### Prune tree with CV ###
@@ -719,11 +763,40 @@ mod.tree.prune <- prune.tree(mod.tree, best = 2)
 
 summary(mod.tree.prune)
 
+par(xpd = TRUE)
 plot(mod.tree.prune)
-text(mod.tree.prune, pretty = 0)
+title(main= "Gate #6 Converted")
+text(mod.tree.prune, pretty = 1,  splits = TRUE, cex=.8)
 
 
 # There is not enough variation. Based on the 50% threshold I was using all the leads would convert. 
+### Predict Conversion, using the pruned tree ###
+tree$convert.Pred <- predict(mod.tree.prune, newdata = tree)
+
+#Reapply 50% classification threshold for predicted conversion
+tree$convert.Pred.Class <- ifelse(tree$convert.Pred > 0.5, "1", "0")
+table(tree$convert.Pred.Class)
+
+tree$converted <- as.character(tree$converted)
+
+#For training set
+print("Train set")
+t <-table(TrueConvert = tree$converted[train], PredConvert = tree$convert.Pred.Class[train]) #How many instances were misclassified? Error rates?
+t
+#Accuracy Rate 
+print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
+
+
+#For test set
+print("Test set")
+t <- table(TrueConvert = tree$converted[test], PredConvert = tree$convert.Pred.Class[test]) #How many instances were misclassified? Error rates?
+t 
+#Accuracy Rate 
+print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
+
+
+print((t[1,1])/ (t[2,1] +t[1,1]))
+print((t[2,2])/ (t[2,2] +t[1,2]))
 
 
 
@@ -731,6 +804,7 @@ text(mod.tree.prune, pretty = 0)
 
 
 ```{r random_forest}
+
 
 library(randomForest)
 tree <- df %>% dplyr::select(age, phone_ornot, phone_model, phone_os, orientation_type, channel, vehicle, offer, offer_amt, LOCALE, x2020POP, DENSITY, converted) #I had to take submarket out because the tree tmethod has a 32 level limit 
@@ -750,6 +824,7 @@ summary(ValidSet)
 model1 <- randomForest(converted ~ ., data = TrainSet, ntree = 200, mtry = 6, do.trace = TRUE, importance = TRUE)
 model1
 
+#Accuracy Rate was also close to 73%. Therefore, there was no improvement. 
 
 ```
 
@@ -912,3 +987,151 @@ ggplot(age_avg_vehicle_per, aes(x = age, y = freq)) +
 
 
 ```
+
+```{r 5 k fold cross validation on step 6 in the funnel}
+# Directly doing k-fold cross validation
+library(boot)
+k <- 5
+cv.error <- rep(0,k)
+for (i in 1:k){
+ glm.fit <- glm(converted ~ age + channel + phone_ornot + DENSITY + LOCALE 
+             + x2020POP + vehicle + da_pfd, data = dfstep6, family = "binomial")
+ cv.error[i] <- cv.glm(dfstep6, glm.fit, K=k)$delta[1]
+}
+cv.error
+```
+
+
+```{r confusion matrix from step 6}
+dfstep6$set <- sample(c("Train", "Test"), nrow(dfstep6), prob = c(0.8,0.2), replace = TRUE)
+df.train <- dfstep6[dfstep6$set=="Train",]
+df.test <- dfstep6[dfstep6$set=="Test",]
+
+#threshold = .5
+mod.log <- glm(converted ~ age + channel + phone_ornot + DENSITY + LOCALE 
+             + x2020POP + vehicle + da_pfd, data = df.train, family = "binomial") 
+pred.log <- predict(mod.log, df.test, type = "response") 
+pred.log.class <- if_else(pred.log >= 0.5, 1,0) 
+mce.log <- mean(df.test$converted != pred.log.class) 
+mce.log
+ 
+#confusionMatrix(mod.log, df.test$converted)
+table(df.test$converted, pred.log.class)
+#accuracy = (5+28922)/(5+28922+10+4075) = .8763
+
+##threshold .7
+mod.log <- glm(converted ~ age + channel + phone_ornot + DENSITY + LOCALE 
+             + x2020POP + vehicle + da_pfd, data = df.train, family = "binomial") 
+pred.log <- predict(mod.log, df.test, type = "response") 
+pred.log.class <- if_else(pred.log >= 0.7, 1,0) 
+mce.log <- mean(df.test$converted != pred.log.class) 
+mce.log
+ 
+
+table(df.test$converted, pred.log.class)
+#accuracy = (140+28635)/(140+28635+297+3940) = .87165
+
+##threshold .4
+mod.log <- glm(converted ~ age + channel + phone_ornot + DENSITY + LOCALE 
+             + x2020POP + vehicle + da_pfd, data = df.train, family = "binomial") 
+pred.log <- predict(mod.log, df.test, type = "response") 
+pred.log.class <- if_else(pred.log >= 0.4, 1,0) 
+mce.log <- mean(df.test$converted != pred.log.class) 
+mce.log
+ 
+
+table(df.test$converted, pred.log.class)
+#accuracy = (2+28932)/(2+28932+4078) = .87647
+```
+
+```{r confusion matrix for contril variables}
+df$set <- sample(c("Train", "Test"), nrow(df), prob = c(0.8,0.2), replace = TRUE)
+df.train <- df[df$set=="Train",]
+df.test <- df[df$set=="Test",]
+
+#threshold = .5
+mod.log <- glm(converted ~ age + channel + phone_ornot + DENSITY + LOCALE 
+             + x2020POP + vehicle, data = df.train, family = "binomial") 
+pred.log <- predict(mod.log, df.test, type = "response") 
+pred.log.class <- if_else(pred.log >= 0.5, 1,0) 
+mce.log <- mean(df.test$converted != pred.log.class) 
+mce.log
+ 
+#confusionMatrix(mod.log, df.test$converted)
+table(df.test$converted, pred.log.class)
+#accuracy = (63961+10467)/(63961+10467+18870+8101) = .7340
+
+##threshold .6
+mod.log <- glm(converted ~ age + channel + phone_ornot + DENSITY + LOCALE 
+             + x2020POP + vehicle, data = df.train, family = "binomial") 
+pred.log <- predict(mod.log, df.test, type = "response") 
+pred.log.class <- if_else(pred.log >= 0.6, 1,0) 
+mce.log <- mean(df.test$converted != pred.log.class) 
+mce.log
+ 
+
+table(df.test$converted, pred.log.class)
+#accuracy = (69890+3161)/(26176+2172+69890+3161) = .7204
+
+##threshold .4
+mod.log <- glm(converted ~ age + channel + phone_ornot + DENSITY + LOCALE 
+             + x2020POP + vehicle, data = df.train, family = "binomial") 
+pred.log <- predict(mod.log, df.test, type = "response") 
+pred.log.class <- if_else(pred.log >= 0.4, 1,0) 
+mce.log <- mean(df.test$converted != pred.log.class) 
+mce.log
+ 
+
+table(df.test$converted, pred.log.class)
+#accuracy = (46458+25120)/(46458+25120+4217+25604) = .7095
+
+```
+
+```{r day start in funnel}
+library(tidyverse)
+theme_set(theme_bw())
+dfnona <- df %>% drop_na(planned_firstdash_wkd)
+both <- dfnona
+both$converted <- as.factor(both$converted)
+b <- ggplot(data = both, aes(x=planned_firstdash_wkd, fill = converted)) +
+    geom_bar(color = "white") +
+    theme(
+         legend.key = element_rect(fill = "transparent"), 
+         legend.spacing = unit(-1, "lines"),
+         panel.background = element_blank(),
+         axis.line = element_line(colour = "black"),
+         text=element_text(face = "bold", size=12),
+         axis.title.y = element_text(vjust = 2),
+         plot.title = element_text(hjust = 0.5)) +
+    xlab("Day of Week") +
+    ylab("Total Applicants") +
+    labs(fill = "Converted", title = "Total Applicants by Day of Week in Last Step and Conversion factor")
+b
+
+
+```
+
+```{r conversion_density_by day of week}
+
+kernel <- df %>% drop_na(planned_firstdash_wkd) %>% group_by(planned_firstdash_wkd) %>% summarize(pct_convert = mean(converted)) 
+
+
+k <- ggplot(kernel, aes(x=planned_firstdash_wkd, y=pct_convert)) +
+    geom_point(color = "#CC4678FF", size = 1,stat="identity") +
+    theme(
+           legend.key = element_rect(fill = "transparent"), 
+           legend.spacing = unit(-1, "lines"),
+           panel.background = element_blank(),
+           axis.line = element_line(colour = "black"),
+           text=element_text(face = "bold", size=12),
+           axis.title.y = element_text(vjust = 2),
+           plot.title = element_text(hjust = 0.5)) +
+      xlab("day of week the planned time occured") +
+      ylab("Percent Conversion") +
+      labs(title = "Percentage of applicants who convert by day of week they planned")
+
+k
+
+```
+
+
