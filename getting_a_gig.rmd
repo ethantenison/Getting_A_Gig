@@ -128,6 +128,7 @@ data$criminal_initiated <- as.character(data$criminal_initiated)
 data$dropship_kit_ordered <- as.character(data$dropship_kit_ordered)
 data$orient_date <- as.character(data$orient_date)
 data$first_dash_date <- as.character(data$first_dash_date)
+data$planned_time <- as.character(data$planned_time)
 
 
 #Leads that converted are given a 1 in the converted column 
@@ -144,6 +145,7 @@ orientation_start_time  = as.Date(orientation_start_time , "%Y-%m-%d %H:%M:%S"),
  criminal_initiated = as.Date(criminal_initiated, "%Y-%m-%d %H:%M:%S"),
  dropship_kit_ordered = as.Date(dropship_kit_ordered, "%Y-%m-%d %H:%M:%S"),
  orient_date = as.Date(orient_date, "%Y-%m-%d"),
+ planned_time = as.Date(planned_time, "%Y-%m-%d"),
  first_dash_date = as.Date(first_dash_date, "%Y-%m-%d")) 
 
 #Adding variables for days of the week that steps are completed 
@@ -155,6 +157,7 @@ df$mvr_initiated_wkd <- weekdays(df$mvr_initiated)
 df$criminal_initiated_wkd <- weekdays(df$criminal_initiated)
 df$dropship_kit_ordered_wkd <- weekdays(df$dropship_kit_ordered)
 df$orient_date_wkd <- weekdays(df$orient_date)
+df$planned_firstdash_wkd <- weekdays(df$planned_time)
 df$first_dash_wkd <- weekdays(df$first_dash_date)
 
 
@@ -329,15 +332,7 @@ summary(logit20)
 
 
 
-
-
-
-
-
-
-
-
-```{r tree}
+```{r tree_total}
 
 tree <- df %>% dplyr::select(age, phone_ornot, phone_model, phone_os, orientation_type, channel, vehicle, offer, offer_amt, LOCALE, x2020POP, DENSITY, converted) #I had to take submarket out because the tree tmethod has a 32 level limit 
 
@@ -379,7 +374,7 @@ text(mod.tree.prune, pretty = 0)
 tree$convert.Pred <- predict(mod.tree.prune, newdata = tree)
 
 #Reapply 50% classification threshold for predicted conversion
-tree$convert.Pred.Class <- ifelse(tree$convert.Pred > quantile(tree$convert.Pred, probs = 0.5), "Convert", "Did Not Convert")
+tree$convert.Pred.Class <- ifelse(tree$convert.Pred > 0.5, "Convert", "Did Not Convert")
 table(tree$convert.Pred.Class)
 
 tree$converted <- as.character(tree$converted)
@@ -389,17 +384,348 @@ tree <- tree %>% mutate(converted = ifelse(converted == "1", "Convert", "Did Not
 
 #For training set
 print("Train set")
-table(TrueConvert = tree$converted[train], PredConvert = tree$convert.Pred.Class[train]) #How many instances were misclassified? Error rates?
-
-#223527/306194
-#Accuracy Rate = 73.00%
+t <- table(TrueConvert = tree$converted[train], PredConvert = tree$convert.Pred.Class[train]) #How many instances were misclassified? Error rates?
+t
+#Accuracy Rate
+(t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2])
 
 #For test set
 print("Test set")
-table(TrueConvert = tree$converted[test], PredConvert = tree$convert.Pred.Class[test]) #How many instances were misclassified? Error rates?
+t <- table(TrueConvert = tree$converted[test], PredConvert = tree$convert.Pred.Class[test]) #How many instances were misclassified? Error rates?
+t
+#Accuracy Rate
+(t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2])
 
-#148609/203458
-#Accuracy Rate = 73.04%
+```
+
+
+```{r tree_MVR_start}
+
+
+tree <- dfstep2 %>% dplyr::select(age, mvrstart, da_profile_submit, phone_ornot, phone_model, phone_os, orientation_type, channel, vehicle, offer, offer_amt, LOCALE, x2020POP, DENSITY, submit_profile_wkd) 
+### Split data into traiing/test index ###
+set.seed(27)
+train <- sample(c(TRUE,FALSE), nrow(tree), rep=TRUE, prob = c(0.6,0.4))
+test <- (!train)
+df_train <- tree[train,]
+
+### Growing a decision tree ###
+
+library(tree)
+
+mod.tree <- tree(mvrstart ~., data = df_train, mindev = 0.001, minsize = 10)  
+
+summary(mod.tree)
+
+plot(mod.tree)
+text(mod.tree, pretty = 0)
+
+
+### Prune tree with CV ###
+
+#Find the best size of the tree - the point where deviance(dev) is lowest
+mod.tree.cv <- cv.tree(mod.tree, FUN = prune.tree)
+mod.tree.cv
+
+plot(mod.tree.cv$size, mod.tree.cv$dev, type = "b")
+#Seems like best size of the tree is 5 - lets use this to prune the tree
+
+mod.tree.prune <- prune.tree(mod.tree, best = 5)
+
+summary(mod.tree.prune)
+
+plot(mod.tree.prune)
+text(mod.tree.prune, pretty = 0)
+
+### Predict Conversion, using the pruned tree ###
+tree$convert.Pred <- predict(mod.tree.prune, newdata = tree)
+
+#Reapply 50% classification threshold for predicted conversion
+tree$convert.Pred.Class <- ifelse(tree$convert.Pred > 0.5, "1", "0")
+table(tree$convert.Pred.Class)
+
+tree$mvrstart <- as.character(tree$mvrstart)
+
+#For training set
+print("Train set")
+t <-table(TrueConvert = tree$mvrstart[train], PredConvert = tree$convert.Pred.Class[train]) #How many instances were misclassified? Error rates?
+t
+#Accuracy Rate 
+print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
+
+
+#For test set
+print("Test set")
+t <- table(TrueConvert = tree$mvrstart[test], PredConvert = tree$convert.Pred.Class[test]) #How many instances were misclassified? Error rates?
+t 
+#Accuracy Rate 
+print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
+
+
+
+
+
+```
+
+```{r tree_background}
+
+
+##Gate 3: Criminal BG Check
+
+tree <- dfstep3 %>% dplyr::select(age, criminalstart, da_mvr_bgc_start, phone_ornot, phone_model, phone_os, orientation_type, channel, vehicle, offer, offer_amt, LOCALE, x2020POP, DENSITY, mvr_initiated_wkd) 
+### Split data into traiing/test index ###
+set.seed(27)
+train <- sample(c(TRUE,FALSE), nrow(tree), rep=TRUE, prob = c(0.6,0.4))
+test <- (!train)
+df_train <- tree[train,]
+
+### Growing a decision tree ###
+
+library(tree)
+
+mod.tree <- tree(criminalstart ~., data = df_train, mindev = 0.001, minsize = 10)  
+
+summary(mod.tree)
+
+plot(mod.tree)
+text(mod.tree, pretty = 0)
+
+
+### Prune tree with CV ###
+
+#Find the best size of the tree - the point where deviance(dev) is lowest
+mod.tree.cv <- cv.tree(mod.tree, FUN = prune.tree)
+mod.tree.cv
+
+plot(mod.tree.cv$size, mod.tree.cv$dev, type = "b")
+#Seems like best size of the tree is 4 - lets use this to prune the tree
+
+mod.tree.prune <- prune.tree(mod.tree, best = 4)
+
+summary(mod.tree.prune)
+
+plot(mod.tree.prune)
+text(mod.tree.prune, pretty = 0)
+
+### Predict Conversion, using the pruned tree ###
+tree$convert.Pred <- predict(mod.tree.prune, newdata = tree)
+
+#Reapply 50% classification threshold for predicted conversion
+tree$convert.Pred.Class <- ifelse(tree$convert.Pred > 0.5, "1", "0")
+table(tree$convert.Pred.Class)
+
+tree$mvrstart <- as.character(tree$criminalstart)
+
+#For training set
+print("Train set")
+t <-table(TrueConvert = tree$criminalstart[train], PredConvert = tree$convert.Pred.Class[train]) #How many instances were misclassified? Error rates?
+t
+#Accuracy Rate 
+print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
+
+
+#For test set
+print("Test set")
+t <- table(TrueConvert = tree$mvrstart[test], PredConvert = tree$convert.Pred.Class[test]) #How many instances were misclassified? Error rates?
+t 
+#Accuracy Rate 
+print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
+
+
+
+```
+
+
+```{r tree_completeorientation}
+
+##Gate 4: Completed Orietation
+
+tree <- dfstep4 %>% dplyr::select(age, orientated, da_crim_bgc_start, phone_ornot, phone_model, phone_os, orientation_type, channel, vehicle, offer, offer_amt, LOCALE, x2020POP, DENSITY, criminal_initiated_wkd) 
+
+tree$orientated[is.na(tree$orientated)] = 0
+
+
+### Split data into traiing/test index ###
+set.seed(27)
+train <- sample(c(TRUE,FALSE), nrow(tree), rep=TRUE, prob = c(0.6,0.4))
+test <- (!train)
+df_train <- tree[train,]
+
+### Growing a decision tree ###
+
+library(tree)
+
+mod.tree <- tree(orientated ~., data = df_train, mindev = 0.001, minsize = 5)  
+
+summary(mod.tree)
+
+plot(mod.tree)
+text(mod.tree, pretty = 0)
+
+
+### Prune tree with CV ###
+
+#Find the best size of the tree - the point where deviance(dev) is lowest
+mod.tree.cv <- cv.tree(mod.tree, FUN = prune.tree)
+mod.tree.cv
+
+plot(mod.tree.cv$size, mod.tree.cv$dev, type = "b")
+#Seems like best size of the tree is 2 - lets use this to prune the tree
+
+mod.tree.prune <- prune.tree(mod.tree, best = 2)
+
+summary(mod.tree.prune)
+
+plot(mod.tree.prune)
+text(mod.tree.prune, pretty = 0)
+
+### Predict Conversion, using the pruned tree ###
+tree$convert.Pred <- predict(mod.tree.prune, newdata = tree)
+
+#Reapply 50% classification threshold for predicted conversion
+tree$convert.Pred.Class <- ifelse(tree$convert.Pred > 0.5, "1", "0")
+table(tree$convert.Pred.Class)
+
+tree$mvrstart <- as.character(tree$orientated)
+
+#For training set
+print("Train set")
+t <-table(TrueConvert = tree$orientated[train], PredConvert = tree$convert.Pred.Class[train]) #How many instances were misclassified? Error rates?
+t
+#Accuracy Rate 
+print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
+
+
+#For test set
+print("Test set")
+t <- table(TrueConvert = tree$mvrstart[test], PredConvert = tree$convert.Pred.Class[test]) #How many instances were misclassified? Error rates?
+t 
+#Accuracy Rate 
+print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
+
+
+```
+
+
+```{r schedule_first_dash}
+
+
+##Gate 5: Planned first dash  
+
+tree <- dfstep5 %>% dplyr::select(age, plannedfirstdash, da_oriented, phone_ornot, phone_model, phone_os, orientation_type, channel, vehicle, offer, offer_amt, LOCALE, x2020POP, DENSITY, orient_date_wkd) 
+
+
+tree$plannedfirstdash[is.na(tree$plannedfirstdash)] = 0
+
+
+### Split data into traiing/test index ###
+set.seed(27)
+train <- sample(c(TRUE,FALSE), nrow(tree), rep=TRUE, prob = c(0.6,0.4))
+test <- (!train)
+df_train <- tree[train,]
+
+### Growing a decision tree ###
+
+library(tree)
+
+mod.tree <- tree(plannedfirstdash ~., data = df_train, mindev = 0.001, minsize = 5)  
+
+summary(mod.tree)
+
+plot(mod.tree)
+text(mod.tree, pretty = 0)
+
+
+### Prune tree with CV ###
+
+#Find the best size of the tree - the point where deviance(dev) is lowest
+mod.tree.cv <- cv.tree(mod.tree, FUN = prune.tree)
+mod.tree.cv
+
+plot(mod.tree.cv$size, mod.tree.cv$dev, type = "b")
+#Seems like best size of the tree is 4 - lets use this to prune the tree
+
+mod.tree.prune <- prune.tree(mod.tree, best = 4)
+
+summary(mod.tree.prune)
+
+plot(mod.tree.prune)
+text(mod.tree.prune, pretty = 0)
+
+### Predict Conversion, using the pruned tree ###
+tree$convert.Pred <- predict(mod.tree.prune, newdata = tree)
+
+#Reapply 50% classification threshold for predicted conversion
+tree$convert.Pred.Class <- ifelse(tree$convert.Pred > 0.5, "1", "0")
+table(tree$convert.Pred.Class)
+
+tree$mvrstart <- as.character(tree$plannedfirstdash)
+
+#For training set
+print("Train set")
+t <-table(TrueConvert = tree$plannedfirstdash[train], PredConvert = tree$convert.Pred.Class[train]) #How many instances were misclassified? Error rates?
+t
+#Accuracy Rate 
+print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
+
+
+#For test set
+print("Test set")
+t <- table(TrueConvert = tree$plannedfirstdash[test], PredConvert = tree$convert.Pred.Class[test]) #How many instances were misclassified? Error rates?
+t 
+#Accuracy Rate 
+print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
+
+
+
+```
+
+```{r converted}
+# Step 6 Conversion 
+
+tree <- dfstep6 %>% dplyr::select(age, converted, da_pfd, phone_ornot, phone_model, phone_os, orientation_type, channel, vehicle, offer, offer_amt, LOCALE, x2020POP, DENSITY, planned_firstdash_wkd) 
+
+
+
+
+### Split data into traiing/test index ###
+set.seed(27)
+train <- sample(c(TRUE,FALSE), nrow(tree), rep=TRUE, prob = c(0.6,0.4))
+test <- (!train)
+df_train <- tree[train,]
+
+### Growing a decision tree ###
+
+library(tree)
+
+mod.tree <- tree(converted ~., data = df_train, mindev = 0.001, minsize = 5)  
+
+summary(mod.tree)
+
+plot(mod.tree)
+text(mod.tree, pretty = 0)
+
+
+### Prune tree with CV ###
+
+#Find the best size of the tree - the point where deviance(dev) is lowest
+mod.tree.cv <- cv.tree(mod.tree, FUN = prune.tree)
+mod.tree.cv
+
+plot(mod.tree.cv$size, mod.tree.cv$dev, type = "b")
+#Seems like best size of the tree is 4 - lets use this to prune the tree
+
+mod.tree.prune <- prune.tree(mod.tree, best = 2)
+
+summary(mod.tree.prune)
+
+plot(mod.tree.prune)
+text(mod.tree.prune, pretty = 0)
+
+
+# There is not enough variation. Based on the 50% threshold I was using all the leads would convert. 
+
+
 
 ```
 
