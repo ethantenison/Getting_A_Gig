@@ -376,6 +376,7 @@ mod.tree.cv <- cv.tree(mod.tree, FUN = prune.tree)
 mod.tree.cv
 
 plot(mod.tree.cv$size, mod.tree.cv$dev, type = "b")
+title(main= "Full Funnel Cross Validation")
 #Seems like best size of the tree is 3 - lets use this to prune the tree
 
 mod.tree.prune <- prune.tree(mod.tree, best = 3)
@@ -1110,6 +1111,8 @@ b
 
 
 ```
+
+
 
 ```{r conversion_density_by day of week}
 
