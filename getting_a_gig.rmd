@@ -13,7 +13,8 @@ list.of.packages <-
                 "googledrive",
                 "janitor",
                 "dplyr",
-                "caret"
+                "caret", 
+                "stargazer"
                 
                 
            )
