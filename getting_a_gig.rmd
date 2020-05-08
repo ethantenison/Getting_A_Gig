@@ -2,9 +2,7 @@
 title: "Getting a Gig"
 author: "Sean Corcoran, Sarah Dodamead, Christopher Matos, Ethan Tenison"
 date: "3/9/2020"
-output:
-  word_document: default
-  html_document: default
+output: html_document
 ---
 
 ```{r libraries, message=FALSE, warning=FALSE}
@@ -13,17 +11,25 @@ list.of.packages <-
                 "googledrive",
                 "janitor",
                 "dplyr",
-                "caret", 
-                "stargazer"
+                "Caret",
+	           "stargazer",
+	           "repart",
+	           "rpart.plot",
+	           "party"
                 
                 
            )
-#new.packages <-list.of.packages[!(list.of.packages %in% installed.packages()[, "Package"])]
+
+new.packages <-list.of.packages[!(list.of.packages %in% installed.packages()[, "Package"])]
 library(googledrive)
 library(janitor)
 library(dplyr)
 library(caret)
 library(stargazer)
+library(rpart)
+library(rpart.plot)
+library(party)
+
 ```
 
 ## Pulling in the data 
@@ -76,37 +82,33 @@ Everything before submitting profile has been removed. Even after profile submis
 
 #### Variables that have been removed: 
 -da_activated, this variable is no longer being used  
--background_submit_Date
 -submit_profile_time, data before this point is insufficient 
--orientation_selection_time
--orientation_start_time (we need to check to see if this is valueable)
 -waitlist_end_date  (this would be more helpful if we knew what date they were put on a waitlist)
--mvr_initiated  
--mvr_cleared 
--criminal_initiated
--criminal_cleared
--dropship_kit_ordered
--orient_date
 -start_date  this is connected to activation which we also deleted 
--first_dash_date, this is removed after the converted variable is created 
--planned_time 
 -apply_date (this value is important if we need to calculate new day variables)
 -applied_submarket
--planned_sp
--planned_sm 
--offer_end
 -is_waitlist, all the waitlisted leads were removed before removing the variable.
--current_wl_status 
+
 -dash_day, was removed because we use first_dash_day
 -NA's were removed from submit_profile_time because we don't have enough data on individuals who haven't made it past that step.
 -da_bgc_info_sub, removed because everything NA
 -x, just an indentifier that I think believe has any meaning
 -dash_applicant_id, just an indentifier that I think believe has any meaning
 -dasher_id, just an indentifier that I think believe has any meaning
--zipcode, it has non US zip codes, so I just took it out. 
 
 #### Variables that have been created: 
 -converted, binary variable describing if a lead has converted or not
+submit_profile_wkd, all of the variables with the suffix wkd are days of the week a step was reached
+apply_date_wkd 
+orientation_selection_wkd 
+orientation_start_wkd
+mvr_initiated_wkd 
+criminal_initiated_wkd 
+dropship_kit_ordered_wkd
+orient_date_wkd 
+planned_firstdash_wkd 
+first_dash_wkd 
+
 
 
 ### Variables that have been imputed: 
@@ -166,7 +168,10 @@ df$first_dash_wkd <- weekdays(df$first_dash_date)
 
 
 df <- df %>%
-        select(-c("da_activated", "background_submit_date", "submit_profile_time", "orientation_selection_time","orientation_start_time", "mvr_initiated","mvr_cleared","criminal_initiated","criminal_cleared", "orient_date", "start_date", "planned_time", "waitlist_end_date" ,"dropship_kit_ordered","apply_date","planned_sp", "planned_sm", "offer_end", "is_waitlist", "current_wl_status","dash_day","da_bgc_info_sub", "x", "dasher_applicant_id", "dasher_id", "zip_code" ))
+        select(-c("da_activated", "background_submit_date", "submit_profile_time", "orientation_selection_time","orientation_start_time", "mvr_initiated","mvr_cleared","criminal_initiated","criminal_cleared", "orient_date", "start_date", "planned_time", "waitlist_end_date",
+                  "dropship_kit_ordered","apply_date","planned_sp",
+                  "planned_sm","offer_end","is_waitlist","current_wl_status","dash_day","da_bgc_info_sub", "x", "dasher_applicant_id",
+                  "dasher_id", "zip_code","holdout"))
 
 # Filling in blank data 
 df$phone_model <- as.character(df$phone_model)
@@ -220,7 +225,7 @@ summary(logit)
 ```{r}
 #Logistic Regression Summary 
 
-stargazer(logit, title = "Regression Results",  type = 'html', out= "logit.html", no.space = TRUE)
+stargazer(logit, title = "Regression Results",  type = ‘text', no.space = TRUE)
 
 ```
 
@@ -234,16 +239,17 @@ summary(linreg)
 
 
 ```
+
+
 ```{r}
 #Logistic Regression Summary 
 
-stargazer(linreg, title = "Linear Regression Gig-Rate Results",  type = 'html', out= "linreg.html", no.space = TRUE)
+stargazer(linreg, title = "Linear Regression Gig-Rate Results",  type = 'text’, no.space = TRUE)
 
 ```
 
 
-```{r linear regression with relevant variables at each step in application process}
-
+```{r conditional regression with relevant variables at each step in application process}
 dfstep <- df
 dfstep$appsubmitted <- ifelse(!is.na(df$da_profile_submit), 1, 0)
 dfstep$mvrstart <- ifelse(!is.na(df$da_mvr_bgc_start), 1, 0)
@@ -253,62 +259,59 @@ dfstep$criminalpassed <- ifelse(!is.na(df$da_crim_bgc_pass), 1, 0)
 dfstep$orientated <- ifelse(!is.na(df$da_oriented), 1, 0)
 dfstep$plannedfirstdash <- ifelse(!is.na(df$da_pfd), 1, 0)
 dfstep$converted <- ifelse(!is.na(df$da_first_dash), 1, 0)
-
+ 
 ##Gate 1: Application Submit
-AppSubmitLogit <- glm(appsubmitted ~ age + DENSITY + LOCALE 
-             + x2020POP + vehicle , data = dfstep, family = "binomial")
+AppSubmitLogit <- glm(appsubmitted ~ age + orientation_type + channel + phone_ornot +  LOCALE
+         	+ x2020POP + vehicle , data = dfstep, family = "binomial")
 summary(AppSubmitLogit)
-
+ 
 dfstep$appsubmitted <- replace(dfstep$appsubmitted, dfstep$appsubmitted == 0, NA)
 dfstep2 <- dfstep[!is.na(dfstep$appsubmitted), ]
-
+ 
 ##Gate 2: MVR Check
-
-MVRCheckLogit <- glm(mvrstart ~ age + DENSITY + LOCALE 
-             + x2020POP + vehicle , data = dfstep2, family = "binomial")
+ 
+MVRCheckLogit <- glm(mvrstart ~ age + da_profile_submit + phone_ornot + orientation_type + channel + vehicle + offer + offer_amt+ LOCALE + x2020POP + DENSITY + submit_profile_wkd, data = dfstep2, family = "binomial")
 summary(MVRCheckLogit)
-
+ 
 dfstep2$mvrpassed <- replace(dfstep2$mvrpassed, dfstep2$mvrpassed == 0, NA)
 dfstep3 <- dfstep2[!is.na(dfstep2$mvrpassed), ]
-
+ 
 ##Gate 3: Criminal BG Check
-
-criminalBGLogit <- glm(criminalstart ~ age + DENSITY + LOCALE 
-             + x2020POP + vehicle , data = dfstep3, family = "binomial")
+ 
+criminalBGLogit <- glm(criminalstart ~ age + da_mvr_bgc_start + phone_ornot + orientation_type + channel + vehicle + offer + offer_amt+ LOCALE + x2020POP + DENSITY +  mvr_initiated_wkd, data = dfstep3, family = "binomial")
 summary(criminalBGLogit)
-
+ 
 dfstep3$criminalpassed <- replace(dfstep3$criminalpassed, dfstep3$criminalpassed == 0, NA)
 dfstep4 <- dfstep3[!is.na(dfstep3$criminalpassed), ]
-
-##Gate 4: Completed Orientation
-
-orientationLogit <- glm(orientated ~ age + DENSITY + LOCALE 
-             + x2020POP + vehicle , data = dfstep4, family = "binomial")
+ 
+##Gate 4: Completed Orietation
+ 
+orientationLogit <- glm(orientated ~ age + da_crim_bgc_start + phone_ornot + orientation_type + channel + vehicle + offer + offer_amt+ LOCALE + x2020POP + DENSITY +  criminal_initiated_wkd, data = dfstep4, family = "binomial")
 summary(orientationLogit)
-
+ 
 dfstep4$orientated <- replace(dfstep4$orientated, dfstep4$orientated == 0, NA)
 dfstep5 <- dfstep4[!is.na(dfstep4$orientated), ]
-
+ 
 ##Gate 5: Scheduled First Dash
-
-pfdLogit <- glm(plannedfirstdash ~ age + DENSITY + LOCALE 
-             + x2020POP + vehicle , data = dfstep5, family = "binomial")
+ 
+pfdLogit <- glm(plannedfirstdash ~ age + da_oriented + phone_ornot + orientation_type + channel + vehicle + offer + offer_amt+ LOCALE + x2020POP + DENSITY +  orient_date_wkd, data = dfstep5, family = "binomial")
 summary(pfdLogit)
-
+ 
 dfstep5$plannedfirstdash <- replace(dfstep5$plannedfirstdash, dfstep5$plannedfirstdash == 0, NA)
 dfstep6 <- dfstep5[!is.na(dfstep5$plannedfirstdash), ]
-
+ 
 ##Gate 6: Converted
-
-convertLogit <- glm(converted ~ age + DENSITY + LOCALE 
-             + x2020POP + vehicle , data = dfstep6, family = "binomial")
+ 
+convertLogit <- glm(converted ~ age + da_pfd + phone_ornot + orientation_type + channel + vehicle + offer + offer_amt+ LOCALE + x2020POP + DENSITY +  planned_firstdash_wkd, data = dfstep6, family = "binomial")
 summary(convertLogit)
-
+ 
 ```
+
+
 ```{r}
 #Gate Logistic Regression Summary 
 
-stargazer(AppSubmitLogit, MVRCheckLogit, criminalBGLogit, orientationLogit, pfdLogit, convertLogit, title = "Regression Gate Results",  type = 'latex', out= "stats.html", no.space = TRUE)
+stargazer(AppSubmitLogit, MVRCheckLogit, criminalBGLogit, orientationLogit, pfdLogit, convertLogit, title = "Regression Gate Results",  type = 'text', no.space = TRUE)
 ```
 ```{r non_action bias logistic regression}
 logit_non_action <- glm(converted ~ age + phone_os + channel + vehicle + offer + offer_amt + offer_deliv_req + LOCALE + x2020POP + AREA + DENSITY, data = df, family = "binomial")
@@ -348,6 +351,7 @@ summary(logit20)
 
 
 
+
 ```{r tree_total}
 
 tree <- df %>% dplyr::select(age, phone_ornot, phone_model, phone_os, orientation_type, channel, vehicle, offer, offer_amt, LOCALE, x2020POP, DENSITY, converted) #I had to take submarket out because the tree tmethod has a 32 level limit 
@@ -377,7 +381,6 @@ mod.tree.cv <- cv.tree(mod.tree, FUN = prune.tree)
 mod.tree.cv
 
 plot(mod.tree.cv$size, mod.tree.cv$dev, type = "b")
-title(main= "Full Funnel Cross Validation")
 #Seems like best size of the tree is 3 - lets use this to prune the tree
 
 mod.tree.prune <- prune.tree(mod.tree, best = 3)
@@ -805,6 +808,7 @@ print((t[2,2])/ (t[2,2] +t[1,2]))
 ```
 
 
+
 ```{r random_forest}
 
 
@@ -1009,9 +1013,10 @@ dfstep6$set <- sample(c("Train", "Test"), nrow(dfstep6), prob = c(0.8,0.2), repl
 df.train <- dfstep6[dfstep6$set=="Train",]
 df.test <- dfstep6[dfstep6$set=="Test",]
 
+
+
 #threshold = .5
-mod.log <- glm(converted ~ age + channel + phone_ornot + DENSITY + LOCALE 
-             + x2020POP + vehicle + da_pfd, data = df.train, family = "binomial") 
+mod.log <- glm(converted ~ age + da_pfd + phone_ornot + orientation_type + channel + vehicle + offer + offer_amt+ LOCALE + x2020POP + DENSITY +  planned_firstdash_wkd, data = df.train, family = "binomial") 
 pred.log <- predict(mod.log, df.test, type = "response") 
 pred.log.class <- if_else(pred.log >= 0.5, 1,0) 
 mce.log <- mean(df.test$converted != pred.log.class) 
@@ -1022,8 +1027,7 @@ table(df.test$converted, pred.log.class)
 #accuracy = (5+28922)/(5+28922+10+4075) = .8763
 
 ##threshold .7
-mod.log <- glm(converted ~ age + channel + phone_ornot + DENSITY + LOCALE 
-             + x2020POP + vehicle + da_pfd, data = df.train, family = "binomial") 
+mod.log <- glm(converted ~ age + da_pfd + phone_ornot + orientation_type + channel + vehicle + offer + offer_amt+ LOCALE + x2020POP + DENSITY +  planned_firstdash_wkd, data = df.train, family = "binomial") 
 pred.log <- predict(mod.log, df.test, type = "response") 
 pred.log.class <- if_else(pred.log >= 0.7, 1,0) 
 mce.log <- mean(df.test$converted != pred.log.class) 
@@ -1034,8 +1038,7 @@ table(df.test$converted, pred.log.class)
 #accuracy = (140+28635)/(140+28635+297+3940) = .87165
 
 ##threshold .4
-mod.log <- glm(converted ~ age + channel + phone_ornot + DENSITY + LOCALE 
-             + x2020POP + vehicle + da_pfd, data = df.train, family = "binomial") 
+mod.log <- glm(converted ~ age + da_pfd + phone_ornot + orientation_type + channel + vehicle + offer + offer_amt+ LOCALE + x2020POP + DENSITY +  planned_firstdash_wkd, data = df.train, family = "binomial") 
 pred.log <- predict(mod.log, df.test, type = "response") 
 pred.log.class <- if_else(pred.log >= 0.4, 1,0) 
 mce.log <- mean(df.test$converted != pred.log.class) 
@@ -1045,6 +1048,8 @@ mce.log
 table(df.test$converted, pred.log.class)
 #accuracy = (2+28932)/(2+28932+4078) = .87647
 ```
+
+
 
 ```{r confusion matrix for contril variables}
 df$set <- sample(c("Train", "Test"), nrow(df), prob = c(0.8,0.2), replace = TRUE)
@@ -1112,8 +1117,6 @@ b
 
 
 ```
-
-
 
 ```{r conversion_density_by day of week}
 
